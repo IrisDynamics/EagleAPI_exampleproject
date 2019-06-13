@@ -50,7 +50,7 @@ static class EagleAPI
             int actID = int.Parse(parsed[1]);
             actuators[actID].force = int.Parse(parsed[2]);
             actuators[actID].position = int.Parse(parsed[3]);
-            actuators[actID].temperature =float.Parse(parsed[3]);
+            actuators[actID].temperature =float.Parse(parsed[4]);
             actuators[actID].lastResponse = Time.time;
             actuators[actID].enumerated = true;
         }
