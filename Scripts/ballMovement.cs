@@ -17,15 +17,10 @@ public class ballMovement : MonoBehaviour
     // FixedUpdate is called at a fixed time interval
     void FixedUpdate()
     {
-        if (rb.position.magnitude > 20)
-        {
-            rb.position = Vector3.zero;
-            rb.velocity = Vector3.zero;
-            rb.angularVelocity = Vector3.zero;
-        }
-        else
-        {
-            rb.AddForce(Input.GetAxis("Horizontal"), 0, Input.GetAxis("Vertical"));
-        }
+        rb.AddForce(Input.GetAxis("Horizontal"), 0, Input.GetAxis("Vertical"));
     }
 }
+
+
+
+
