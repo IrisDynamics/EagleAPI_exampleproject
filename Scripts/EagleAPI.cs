@@ -51,6 +51,7 @@ static class EagleAPI
             actuators[actID].force = int.Parse(parsed[2]);
             actuators[actID].position = int.Parse(parsed[3]);
             actuators[actID].temperature =float.Parse(parsed[4]);
+            actuators[actID].voltage = float.Parse(parsed[5]);
             actuators[actID].lastResponse = Time.time;
             actuators[actID].enumerated = true;
         }
@@ -70,7 +71,7 @@ static class EagleAPI
         {
             int actID = int.Parse(parsed[1]);
             actuators[actID].lastResponse = Time.time;
-            actuators[actID].polarity = parsed[2];
+            actuators[actID].polarity = int.Parse(parsed[2]);
             actuators[actID].enumerated = true;
         }
         else if (cmd == ">rp")                        // an upstream reset position response has been received
@@ -148,9 +149,9 @@ static class EagleAPI
 
 class Actuator
 {
-    public int actID, force, position;
-    public float temperature, lastResponse;
-    public string state, polarity, actuatorInfo;
+    public int actID, force, position, polarity;
+    public float temperature, voltage, lastResponse;
+    public string state, actuatorInfo;
     public bool enumerated;
     public Actuator(int actuatorID)  //Constructor
     {
@@ -177,9 +178,9 @@ class Actuator
         Serial.WriteLn("<wake " + actID + "\r");
     }
 
-    public void Polarity()                     //send a downstream Polarity Command (change the positive direction)
+    public void Polarity(int pol)                     //send a downstream Polarity Command (change the positive direction)
     {
-        Serial.WriteLn("<pol " + actID + "\r");
+        Serial.WriteLn("<pol " + actID + " " + pol + "\r");
     }
 
     public void ResetPosition()               //send a downstream Reset Position Command (set the current position to 0)

@@ -16,7 +16,7 @@ public class EagleAPIexample : MonoBehaviour
                                                 "Available Actuators?", "Initialize"}; //buttons for downstream commands
 
     string[] upstreamLabels = new string[] { "Errors", "Available Actuators", "Selected Actuator ID",
-                                             "Time of Last Response", "Force", "Position", "Temperature",
+                                             "Time of Last Response", "Force", "Position", "Temperature", "Voltage",
                                              "State", "Polarity", "Info" };   //labels identify upstream responses
     string[] upstreamTextFields;   //TextFields that will be updated information related to the target actuator
 
@@ -61,7 +61,17 @@ public class EagleAPIexample : MonoBehaviour
                 {
                     case 0: EagleAPI.actuators[target].Force(force); break;
                     case 1: EagleAPI.actuators[target].ExtendedForce(force); break;
-                    case 2: EagleAPI.actuators[target].Polarity(); break;
+                    case 2:
+                        if (EagleAPI.actuators[target].polarity == 0)
+                        {
+                            EagleAPI.actuators[target].Polarity(1);
+                        }
+                        else
+                        {
+                            EagleAPI.actuators[target].Polarity(0);
+                        }
+                        
+                        break;
                     case 3: EagleAPI.actuators[target].Info(); break;
                     case 4: EagleAPI.actuators[target].Temperature(); break;
                     case 5: EagleAPI.actuators[target].Sleep(); break;
@@ -83,8 +93,9 @@ public class EagleAPIexample : MonoBehaviour
                                             EagleAPI.actuators[target].force.ToString(),
                                             EagleAPI.actuators[target].position.ToString(),
                                             EagleAPI.actuators[target].temperature.ToString(),
+                                            EagleAPI.actuators[target].voltage.ToString(),
                                             EagleAPI.actuators[target].state,
-                                            EagleAPI.actuators[target].polarity,
+                                            EagleAPI.actuators[target].polarity.ToString(),
                                             EagleAPI.actuators[target].actuatorInfo };
 
         //show the information under the relevant label

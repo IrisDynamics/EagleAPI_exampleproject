@@ -5,7 +5,7 @@ using UnityEngine;
 public class Spring : MonoBehaviour
 {
     int actID = 0;   //
-    int springCenter = 5000;    //location of the spring center 
+    int springCenter = 10000;    //location of the spring center 
     float springK = 0.005f;        //spring constant will control the strength of the spring
     int actuator_position;
     float maxForce = 50;
