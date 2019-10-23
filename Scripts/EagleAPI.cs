@@ -1,8 +1,13 @@
-﻿using System.Collections;
+﻿/**@file EagleAPI.cs
+ * This is the Eagle API library that allows easy sending and parsing of all EagleAPI commands
+ */
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-
+/**\class EagleAPI
+ * Contains serial commands to send to Eagle Controller.
+ */
 static class EagleAPI
 {
     public static string error;
@@ -26,42 +31,28 @@ static class EagleAPI
     {
         Serial.Write("[handshake\r");
     }
-
+    ///Signals the actuators have been moved to their zero position and are ready to exert forces
     public static void SystemReady()
     {
         Serial.Write("[ready\r");
     }
 
-    public static void CheckCorrectPort()
-    {
-        if (Serial.correctPort)
-        {
-            Debug.Log("port success");
-        }
-        else
-        {
-            Debug.Log("increment Port");
-            Serial.s_serial = null;
-            Serial.portAttempt++;
-            Serial.checkOpen();
-        }
-    }
-    //parse upstream responses
-    //call this function inside OnSerialLine(string line)
+    /**Parse responses from eagle controller
+     * This function is called by the receivedData function of the Serial class
+     * \param line Incomming serial line to be parsed
+     */
     public static void Receive(string line) 
     {
-        //eDebug.Log(line);
-        string[] parsed = line.Split(null);             //serial line is space delimited
-        string cmd = parsed[0];                         //the first element is always the command identifier
-        error = "";                                     //reset the error when a new line is received
-                                                        //whenever a response is received with a given actuator ID that Actuator object is updated
+        string[] parsed = line.Split(null);             ///serial line is space delimited
+        string cmd = parsed[0];                         ///the first element is always the command identifier
+        error = "";                                     ///reset the error when a new line is received
+                                                        ///whenever a response is received with a given actuator ID that Actuator object is updated
         if (false) { }
-        else if (cmd == "]response")                           // an upstream handshake response
+        else if (cmd == "]response")                           /// If a handshake response is received set the correct port has been found.
         {
             Serial.correctPort = true;
-            Debug.Log("response");
         }
-        else if (cmd == "]f")                           // an upstream force response has been received
+        else if (cmd == "]f")                           /// If a force response has been received update the relevant actuator parameters
         {
             
             try
@@ -78,7 +69,7 @@ static class EagleAPI
                 Debug.LogError("BAD string: " + line.ToString());
             }
         }
-        else if (cmd == "]pc")                           // an upstream force response has been received
+        else if (cmd == "]pc")                           /// If a position control response has been received update the relevant actuator parameters
         {
             try
             {
@@ -96,7 +87,7 @@ static class EagleAPI
             
 
         }
-        else if (cmd == "]exf")                          // an upstream force response has been received
+        else if (cmd == "]exf")                         /// If an extended force response has been received update the relevant actuator parameters
         {
             try
             {
@@ -105,7 +96,7 @@ static class EagleAPI
                 actuators[actID].position = long.Parse(parsed[3]);
                 actuators[actID].errors = int.Parse(parsed[4]);
                 actuators[actID].temperature = int.Parse(parsed[5]);
-                actuators[actID].voltage = int.Parse(parsed[6]) / 1000f;
+                actuators[actID].voltage = int.Parse(parsed[6]) / 1000f;    
                 actuators[actID].power = int.Parse(parsed[7]);
                 actuators[actID].lastResponse = Time.time;
                 actuators[actID].enumerated = true;
@@ -118,7 +109,7 @@ static class EagleAPI
             
             
         }
-        else if (cmd == "]sleep")                      // an upstream sleep response has been received
+        else if (cmd == "]sleep")                      /// If a sleep response has been received update the relevant actuator parameters
         {
             try
             {
@@ -132,7 +123,7 @@ static class EagleAPI
             }
             
         }
-        else if (cmd == "]wake")                       // an upstream wake response has been received
+        else if (cmd == "]wake")                       /// If a wake response has been received update the relevant actuator parameters
         {
             try
             {
@@ -145,9 +136,9 @@ static class EagleAPI
                 Debug.LogError(line.ToString());
             }
         }
-        else if (cmd == "]pol")                       // an upstream polarity response has been received
+        else if (cmd == "]pol")                       /// If a polarity response has been received update the relevant actuator parameters
         {
-            
+
             try
             {
                 int actID = int.Parse(parsed[1]);
@@ -160,7 +151,7 @@ static class EagleAPI
                 Debug.LogError(line.ToString());
             }
         }
-        else if (cmd == "]rp")                        // an upstream reset position response has been received
+        else if (cmd == "]rp")                        /// If a reset position response has been received update the relevant actuator parameters
         {
             try
             {
@@ -174,7 +165,7 @@ static class EagleAPI
             }
 
         }
-        else if (cmd == "]t")                         //an upstream temperature response has been received
+        else if (cmd == "]t")                         /// If a temperature response has been received update the relevant actuator parameters
         {
             try
             {
@@ -189,7 +180,7 @@ static class EagleAPI
             }
             
         }
-        else if (cmd == "]info")                     // an upstream info response has been received
+        else if (cmd == "]info")                     /// If a info response has been received update the relevant actuator parameters
         {
             int actID = int.Parse(parsed[1]);
             actuators[actID].lastResponse = Time.time;
@@ -200,9 +191,7 @@ static class EagleAPI
             }
             actuators[actID].enumerated = true;
         }
-        else if (cmd == "]invalid_act")             // The targetted actuator is not enumerated.
-                                                    // check the string EagleAPI.availableActuators for a list of enumerated actuator ID
-                                                    // to update the list of available actuators run EagleAPI.Enumerate() or EagleAPI.Initialize()
+        else if (cmd == "]invalid_act")             /// The targetted actuator is not enumerated.                                                    */
         {
             error = "Target actuator " + parsed[1] + " not available";
             int actID;
@@ -216,7 +205,7 @@ static class EagleAPI
             }
             
         }
-        else if (cmd == "]invalid_arg")            // The argument sent with the command was invalid
+        else if (cmd == "]invalid_arg")            /// The argument sent with the command was invalid
         {
             error = parsed[3] + "is not a valid argument for" + parsed[2] + "command";
         }
@@ -242,70 +231,98 @@ static class EagleAPI
     }
 }
 
+/**\class Actuator 
+ * Object that is used to keep track of infomation pertaining to a specific actuator
+ * This object is updated from the EagleAPI Receive function
+ */
 class Actuator
 {
     public int actID, force, polarity, errors;
-    public long position, velocity, last_position;
+    public long position;
     public float temperature, voltage, power, lastResponse;
-    public string state, actuatorInfo;
+    public string actuatorInfo;
     public bool enumerated;
-    public Actuator(int actuatorID)  //Constructor
+    /**Constructor
+     * \param actuatorID This is the id used by the eagle controller as described in the Eagle Controller Reference Manual
+     */
+    public Actuator(int actuatorID)  
     {
         actID = actuatorID;
     }
 
-    public void Force(int forceArg=0)         //send a downstream Force Command (actuator must first be enabled with Wake command to output a force)
+    /**Send a Force Command 
+     * This will be overriden if position control is enabled
+     * \param forceArg Magnitude of the force command between -220 and 220
+     */
+    public void Force(int forceArg=0)         
     {
         Serial.Write("[f " + actID.ToString() + " " + forceArg.ToString() + "\r");
     }
-
-    public void ExtendedForce(int forceArg=0)  //send a downstream Extended Force Command (actuator must first be enabled to output a force)
+    /**Send an Exteneded Force Command 
+     * This will be overriden if position control is enabled
+     * \param forceArg Magnitude of the force command between -220 and 220
+     */
+    public void ExtendedForce(int forceArg=0)  
     {
         Serial.Write("[exf " + actID + " " + forceArg + "\r");
     }
-
-    public void Sleep()                         //send a downstream Sleep Command (disable actuator forces)
+    ///Send a sleep command to disabled acutator
+    public void Sleep()                        
     {
         Debug.Log("sleep");
         Serial.Write("[sleep " + actID + "\r");
     }
-
-    public void Wake()                          //send a downstream Wake Command (enable actuator forces)
+    ///Send a wake command to enable actuator that has been disabled (automatically enabled on start up)
+    public void Wake()                         
     {
         Serial.Write("[wake " + actID + "\r");
     }
 
-    public void Polarity(int pol)                     //send a downstream Polarity Command (change the positive direction)
+    /**Send a polarity command to change the direction of increasing position/positive force
+     * \param pol Either positive polarity (0) or negative polarity(1)
+     */
+    public void Polarity(int pol)                     
     {
         Serial.Write("[pol " + actID + " " + pol+ "\r");
     }
-
-    public void ResetPosition()               //send a downstream Reset Position Command (set the current position to 0)
+    /**Semd a reset position command to make the current position zero
+     */
+    public void ResetPosition()              
     {
         Serial.Write("[rp " + actID + "\r");
     }
-
-    public void PositionControl(int target_pos)               //send a downstream Reset Position Command (set the current position to 0)
+    /**Send a position control command
+     * \param target_pos Target position in millimeters from the zero position
+     */
+    public void PositionControl(int target_pos)               
     {
         Serial.Write("[pc " + actID + " " + target_pos+  "\r");
     }
 
-    public void EnablePositionControl(int enable)               //send a downstream Reset Position Command (set the current position to 0)
-    {
+    /**Send an enabled position control command
+     * The position controller must me tuned in iris controls before it will track positions
+     * \param enable Either enable(1) or disable (0) the position controller
+     */
+    public void EnablePositionControl(int enable) { 
         Serial.Write("[pcen " + actID + " " + enable + "\r");
     }
 
-    public void Temperature()                 //send a downstream Temperature Request (ask for the temperature in Celcius)
+    /**Send a temperature command
+     */
+    public void Temperature()                
     {
         Serial.Write("[t " + actID + "\r");
     }
 
-    public void ClearErrors()                 //send a downstream clear error request, will clear any errors that are no longer present
+    /**Send a clear errors command (not available on all eagle controllers)
+     */
+    public void ClearErrors()                 
     {
         Serial.Write("[ce " + actID + "\r");
     }
-
-    public void Info()                        //send a downstream Info Request to receive configuration and ID information
+    /**Send a get info command to find out about the actuator's build and serial numbers.
+     */
+    public void Info()                       
     {
         Serial.Write("[info " + actID + "\r");
     }

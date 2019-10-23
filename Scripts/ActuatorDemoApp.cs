@@ -2,25 +2,25 @@
  * 
  *Control actuators using EagleAPI
  * @mainpage Introduction
- * This is an app used to control the actuators force using sliders.
+ * This is an app used to control the actuators force or position using sliders.
  * Communication to an Eagle controller over usb using EagleAPI protocol.
  * @section Usage
- * Ensure an eagle controller is connected to a usb port and powered.
- * When started, the app will search for an eagle device over the connected comms port until it receives a }response reply.
- * When connected to the right port, the CommPort will turn green.
- * The slider at the top right will select an actuator to target, these numbers are based on how the actuators are enumerated by the eagle controller.
- * Before sending forces, ensure the actuator has been enabled by sending an enable command. To test that the actuator is outputing forces as expected you can use the 
- * Force -15 button to send a small output force once. 
- * When the enableeffects button is pressed, this app will start streaming force commands of the amount specified by the sending force, to the target actuator.
- * The commands are streamed at 1kHz, the number of packets per second as well as the force calculation timestep is noted.
- * The actuator's position in millimeters is availble under the target actuator, note this is only updated when enbale effects is turned on.
- * If you would like to stream position without sending forces, either set all effects sliders to 0, or ensure the actuator is disabled, before pressing enableeffects.
- * Ensure the actuator's shaft has been moved through it's range of motion before enabling forces on a new powerup. This will ensure that the position reading is accurate
- * and a reasonable zero position is established.
+ * Ensure an eagle controller is connected to a usb port and powered according to the instructions in the Eagle Controller Reference Manual.
+ * When started, the app will search for an eagle device over the connected comms port until it receives a ']response' reply.
+ * When connected to the right port, the CommPort will turn white. Note that the app will not be able to connect if the IrisControls software is still running.
+ * The slider at the top left will select an actuator to target, these numbers are based on how the actuators are enumerated by the eagle controller.
+ * Before sending forces, ensure the system ready command has been send with either a physical button, sending and EagleAPI.SystemReady() command (can use the serial box and send [ready), or
+ * by pressing the system ready button in IrisControls.
+ * When the Force Control button is pressed, this app will disable position control and start streaming force commands of the amount specified by the sending force, to the target actuator.
+ * When the Position Control button is pressed, this app will enable position control and start streaming position control commands to the target position specified, to the target actuator.
+ * The commands are streamed at 1kHz.
+ * The actuator's position in millimeters is availble under the target actuator, in addition to other relevant acutator information.
+ * Ensure the actuator's shaft has been moved through it's range of motion or is in the zero position before sending the system ready command on a new powerup. This will ensure that the position reading is accurate
+ * and a reasonable zero position is established. If the zero position is not as expected, send the serial command '[rp ActID' (where the ActID is your target actuator) or use the EagleAPI.ResetPosition() function.
  * 
- * There are two main effects available, a spring effect and a sinusoidal force., todo second sine wave for layering
+ * The Force effects available are a spring effect, a sinusoidal force, and a constant force, which can be layered. 
  * 
- * Effects Sliders
+ * Force Control Sliders
  * - Spring Constant
  * This is the spring rate higher values indicate stronger spring force/mm (since force is not a defined unit)
  * 
@@ -32,6 +32,10 @@
  * 
  * - Sine Frequency
  * Frequency of sine wave oscillation in Hz
+ * 
+ * Position Control Sliders
+ * - Target Position
+ * This is the target position in mm from the zero position of the actuator that it should try to move to, if this is not working ensure that the position controller has been tuned using IrisControls software 
  */
 
 using System.Collections;
@@ -46,47 +50,32 @@ using UnityEngine;
  */
 public class ActuatorDemoApp : MonoBehaviour
 {
-    int target_actuator = 0;    //!< Actuator to send commands to 
-    long actuator_position;  //!< Target actuator's last received position
-    float send_force;       //!< Combined effects force used to send to the actuator (is limited by max force)
-    float spring_force;     //!< force due to spring effect
-    float sine_force;       //!< force due to sine wave effect
-    float springCenter = 0; //!< center of spring in mm, used in determining spring force
-    float springK = 0;      //!< spring constant in force/mm,  used in determining spring force
-    float sine_mag = 0;     //!< magnitude of sine wave, used in determining sine force
-    float sine_freq = 0;    //!< frequency of sine wave force effect
-    float const_force = 0;   //!< Constant force to send actuator
-    int maxForce = 150;      //!< maximum force to be commanded to the actuator.
-    string[] command_buttons = new string[] {"System Ready",
-                                             "Force",
-                                             "Extended Force",
-                                             "Position Control",
-                                             "Enable Position Control",
-                                             "Sleep",
-                                             "Wake",
-                                             "Polarity",
-                                             "Reset Position",
-                                             "Temperature",
-                                             "Info",
-                                             "Enumerate"}; //!<button names for commands
-    int[] argument_slider = new int[12];//!<EagleAPI command arguments
-    bool enableEffects = true;     //!< enable the effects to the actuator (i.e. start streaming force commands with effects
-    DateTime referenceTime;     //!< date time object for the current time 
-    DateTime startTime; //!< time at start of app
-    float last_second;     //!<Time when the last second calculation was performed used to calculate packets per second
-    float last_step;    //!< Time at the last fixed time step  used to calculate timestep length
-    long elapsedTicks;  //!< used to determine the change in time where ticks are 100 nanaseconds.
-    int packets_per_second = 0; //!< number of serial writes used per second, might not be accurate representation of packets per second
-    float time_step = 0;    //!< Calculated time that a fixed timestep takes for force calculations
-    float waiting_for_response;    //!< Time that a handshake command was sent if this is longer than a certain amount of time the port is abandonned and a new port is attempted
+    int target_actuator = 0;            //!< Actuator to send commands to 
+    int last_target_actuator = 0;       //!< Last slider position used to check if the target actuator has changed to enabled position control
+    long actuator_position;             //!< Target actuator's last received position
+    float send_force;                   //!< Combined effects force used to send to the actuator (is limited by max force)
+    float spring_force;                 //!< force due to spring effect
+    float sine_force;                   //!< force due to sine wave effect
+    float springCenter = 0;             //!< origin position of spring in mm, used in determining spring force
+    float springK = 0;                  //!< spring constant in force/mm,  used in determining spring force
+    float sine_mag = 0;                 //!< magnitude of sine wave, used in determining sine force
+    float sine_freq = 0;                //!< frequency of sine wave force effect
+    float const_force = 0;              //!< Constant force to send actuator
+    int maxForce = 150;                 //!< maximum force to be commanded to the actuator.
+    bool forceControl = true;           //!< enable the effects to the actuator (i.e. start streaming force commands with effects
+    DateTime startTime;                 //!< time at start of app
+    float last_second;                  //!<Time when the last second calculation was performed used to calculate packets per second
+    float last_step;                    //!< Time at the last fixed time step  used to calculate timestep length
+    float waiting_for_response;         //!< Time that a handshake command was sent if this is longer than a certain amount of time the port is abandonned and a new port is attempted
     GUIStyle style = new GUIStyle();    //!< Used to change the comms to green when successful port is found.
-    bool extended_servo_flag = false;
-    string stringCommand;
-    int target_position = 0;
-    bool positionControl = false;
-    bool pcenableflag = true;
+    bool extended_servo_flag = false;   //!< flag set every second to send an extended servo command if in force control mode
+    string stringCommand;               //!< Command entered in the serial command text box
+    int target_position = 0;            //!< target position for position control
+    bool positionControl = false;       //!< Toggle to turn on position control
+    bool pcenableflag = true;           //!< When true send a pc enable command (either on or off depending on circumstance)
+
     /** Start is called before the first frame update
-     * Starts the invoking of the function that will calculate the actuator physics
+     * Sets up the window size and sends the initial handshake to check if the right port is being used by the Serial class
      */
     void Start()
     {
@@ -98,34 +87,32 @@ public class ActuatorDemoApp : MonoBehaviour
     }
 
     /** Updates at a fixed timestep. 
-     * updates the actuator position and uses it to perform physics calculations for effects
+     * Calculates physics for force control effects or position control
      */
     void FixedUpdate()
     {
-        referenceTime = DateTime.Now;
-        elapsedTicks = referenceTime.Ticks - startTime.Ticks;
-        time_step = (Time.time - last_step);
         last_step = Time.time;
-        ///check how many packets have been sent in the last second.
+        ///send an extended force command every second whne in force control mode to update temperature adn voltage etc.
         if ((Time.time - last_second) > 1)
         {
             last_second = Time.time;
-            packets_per_second = Serial.packets;
-            Serial.packets = 0;
             extended_servo_flag = true;
         }
         ///calculate spring force
         spring_force = -(EagleAPI.actuators[target_actuator].position - springCenter*1000f) * springK/1000f;
 
         ///calculate sine force
-        sine_force = sine_mag * Mathf.Sin(2 * Mathf.PI * sine_freq * Time.time);  //(elapsedTicks * 100f/1000f/1000f/1000f)
+        sine_force = sine_mag * Mathf.Sin(2 * Mathf.PI * sine_freq * Time.time); 
 
-        ///layer effects
-        send_force = spring_force + sine_force + const_force;// + damping_force;
+        ///layer force effects
+        send_force = spring_force + sine_force + const_force;
 
+        ///Cap the maximum force 
         if (Mathf.Abs(send_force) > maxForce) send_force = Mathf.Sign(send_force) * maxForce;
+
+        ///If the actuator position is invalid do not send a force
         if (EagleAPI.actuators[target_actuator].position > 500000) send_force = 0;
-        ///send forces to the actuator if effects are not enabled still send 0 force so that a position response is returned
+        ///If the position Control button is toggled on enable postion contoller if needed and send a position control command to the target position.
         if (positionControl)
         {
             if (pcenableflag)
@@ -135,7 +122,8 @@ public class ActuatorDemoApp : MonoBehaviour
             }
             EagleAPI.actuators[target_actuator].PositionControl(target_position);
         }
-        if (enableEffects)
+        ///If the force Control button is toggled on disabled the position controller if needed and send a force command to the actuator using the layered effects.
+        else if (forceControl)
         {
             if (pcenableflag)
             {
@@ -145,77 +133,53 @@ public class ActuatorDemoApp : MonoBehaviour
             if (extended_servo_flag) { EagleAPI.actuators[target_actuator].ExtendedForce((int)send_force); extended_servo_flag = false; }
             else EagleAPI.actuators[target_actuator].Force((int)send_force);
         }
+        ///If neither force conttrol of position control are toggled on send a 0 force so the acutator position is still streamed
+        else EagleAPI.actuators[target_actuator].Force(0);
     }
 
     /**
      * Update the app's gui and take actions based on user interaction with gui
+     * Additional buttons can be added to easily send EagleAPI commands
+     * if (GUI.Button(new Rect(200, 200, 75, 20), "Reset Position"))    EagleAPI.actuators[target_actuator].ResetPosition();
      */
     private void OnGUI()
     {
-        //GUI.Label(new Rect(300, 20, 200, 20), "EagleAPI Single Command");
-        /////Populate the buttons and send appropriate command on button press
-        //for (int i = 0; i < command_buttons.Length; i++)
-        //{
-        //    if (GUI.Button(new Rect(300, 50 + i * 40, 150, 20), command_buttons[i]))
-        //    {
-        //        switch (i)
-        //        {
-        //            case 0: EagleAPI.SystemReady(); break;
-        //            case 1: EagleAPI.actuators[target_actuator].Force(0);  break;
-        //            case 2: EagleAPI.actuators[target_actuator].ExtendedForce(0); break;
-        //            case 3: EagleAPI.actuators[target_actuator].PositionControl(0);break;
-        //            case 4: EagleAPI.actuators[target_actuator].EnablePositionControl(1);break;
-        //            case 5: EagleAPI.actuators[target_actuator].Sleep();break;
-        //            case 6: EagleAPI.actuators[target_actuator].Wake(); break;
-        //            case 7: EagleAPI.actuators[target_actuator].Polarity(1); break;
-        //            case 8: EagleAPI.actuators[target_actuator].ResetPosition(); break;
-        //            case 9: EagleAPI.actuators[target_actuator].Temperature(); break;
-        //            case 10: EagleAPI.actuators[target_actuator].Info(); break;
-        //            case 11: EagleAPI.Enumerate();  break;
-        //        }
-        //    }
-        //}
-        //GUI.Label(new Rect(500, 20, 200, 20), "Argument");
-        //for (int i = 0; i < argument_slider.Length; i++)
-        //{
-        //    argument_slider[i] = (int)GUI.HorizontalSlider(new Rect(500, 55 + i * 40, 150, 20), (float)argument_slider[i], 0, 1);
-
-        //}
-        ///Search for a serial port that has an eagle controller, stop and green light when correct port found
+        ///Search for a serial port that has an eagle controller, stop and white light when correct port found
         switch (Serial.correctPort)
         {
             case false:
+                style.normal.textColor = Color.black;
                 EagleAPI.Handshake();
                 if ((Time.time - waiting_for_response) > 0.1)
                 {
-                    Debug.Log("increment Port");
                     Serial.s_serial = null;
                     Serial.portAttempt++;
                     Serial.checkOpen();
                     EagleAPI.Handshake();
                     waiting_for_response = Time.time;
                 }
-                style.normal.textColor = Color.black;
                 break;
             case true:
                 style.normal.textColor = Color.white;
                 break;
         }
 
-        ///Unity info, com port, packets send per second, force calculation timestep
-        GUI.Label(new Rect(Screen.width - 250, Screen.height -100, 250, 40), "CommPort:     " + Serial.port_name, style);
+        ///Comm port that is being used by the Serial class
+        GUI.Label(new Rect(Screen.width - 250, Screen.height -100, 250, 40), "Port:     " + Serial.port_name, style);
 
-        ///Actuator information, target acutator, position, force being sent
+        ///Actuator information, target acutator, position, actuator force, temperature etc.
         GUI.Label(new Rect(50, 50, 250, 40), "Target Actuator:               " + target_actuator.ToString());
-        target_actuator = Mathf.RoundToInt(GUI.HorizontalSlider(new Rect(50, 30, 150, 20), target_actuator, 0, 5)); //Target Actuator slider 
-        GUI.Label(new Rect(50, 75, 250, 20), "Actuator Position (mm):    " + (EagleAPI.actuators[target_actuator].position / 1000f).ToString("0.00"));
+        target_actuator = Mathf.RoundToInt(GUI.HorizontalSlider(new Rect(50, 30, 150, 20), target_actuator, 0, 5));
+        if (target_actuator != last_target_actuator) pcenableflag = true;
+        GUI.Label(new Rect(50, 75, 250, 20), "Actuator Position (mm):    " + (EagleAPI.actuators[target_actuator].position / 1000f).ToString("0.00")); //position is received in micrometers
         GUI.Label(new Rect(50, 100, 250, 20), "Actuator Force:                " + EagleAPI.actuators[target_actuator].force.ToString("0"));
         GUI.Label(new Rect(50, 125, 250, 20), "Errors:                            " + EagleAPI.actuators[target_actuator].errors.ToString());
         GUI.Label(new Rect(50, 150, 250, 20), "Temperature (C):              " + EagleAPI.actuators[target_actuator].temperature.ToString());
         GUI.Label(new Rect(50, 175, 250, 20), "Voltage (V):                     " + EagleAPI.actuators[target_actuator].voltage.ToString("0.00"));
         GUI.Label(new Rect(50, 200, 250, 20), "Power (W):                      " + EagleAPI.actuators[target_actuator].power.ToString("0.00"));
-        ///Effects information, spring constant and center, sine magnitude and frequency.
-        if(enableEffects = GUI.Toggle(new Rect(500, 50, 250, 20), enableEffects, "ForceControl", "Button"))
+
+        ///Force Control section, spring constant and center, sine magnitude and frequency.
+        if(forceControl = GUI.Toggle(new Rect(500, 50, 250, 20), forceControl, "ForceControl", "Button"))
         {
             if (positionControl) pcenableflag = true;
             positionControl = false;
@@ -231,11 +195,11 @@ public class ActuatorDemoApp : MonoBehaviour
         GUI.Label(new Rect(300, 175, 250, 20), "Constant Force:                  " + const_force.ToString("0"));
         const_force = (GUI.HorizontalSlider(new Rect(500, 180, 250, 20), const_force, -30, 30));
 
-        ///Effects information, spring constant and center, sine magnitude and frequency.
+        ///Position control sections
         if(positionControl = GUI.Toggle(new Rect(500, 250, 250, 20), positionControl, "Position Control", "Button"))
         {
-            if (enableEffects) pcenableflag = true;
-            enableEffects = false;
+            if (forceControl) pcenableflag = true;
+            forceControl = false;
         }
         GUI.Label(new Rect(300,275, 250, 20), "Target Position(mm):          " + target_position.ToString("0"));
         target_position = (int)(GUI.HorizontalSlider(new Rect(500, 280,250, 20), target_position, 0, 150));
