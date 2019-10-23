@@ -10,91 +10,186 @@ static class EagleAPI
     public static Actuator[] actuators = new Actuator[8] {new Actuator(0), new Actuator(1), new Actuator(2),
                                                         new Actuator(3), new Actuator(4), new Actuator(5),
                                                         new Actuator(6), new Actuator(7)};
+   
 
-    //check find out which actuators are availble without reinitializing them
+    /**initialize all actuators, this will configure and calibrate the actuators to their default settings
+    *the Eagle Controller does this automatically on start up
+    *this will also update the enumerated variable of the actuators
+    */
     public static void Enumerate()
     {
-        for (int i =0; i<actuators.Length; i++)
+        Serial.Write("[init" + "\r"); 
+    }
+
+    ///Handshake command used to confirm that the 
+    public static void Handshake()
+    {
+        Serial.Write("[handshake\r");
+    }
+
+    public static void SystemReady()
+    {
+        Serial.Write("[ready\r");
+    }
+
+    public static void CheckCorrectPort()
+    {
+        if (Serial.correctPort)
         {
-            actuators[i].Sleep();
+            Debug.Log("port success");
+        }
+        else
+        {
+            Debug.Log("increment Port");
+            Serial.s_serial = null;
+            Serial.portAttempt++;
+            Serial.checkOpen();
         }
     }
-
-    //initialize all actuators, this will configure and calibrate the actuators to their default settings
-    //the Eagle Controller does this automatically on start up
-    //this will also update the enumerated variable of the actuators
-    public static void Initialize()
-    {
-        Serial.WriteLn("<init" + "\r");
-    }
-
     //parse upstream responses
     //call this function inside OnSerialLine(string line)
     public static void Receive(string line) 
     {
+        //eDebug.Log(line);
         string[] parsed = line.Split(null);             //serial line is space delimited
         string cmd = parsed[0];                         //the first element is always the command identifier
         error = "";                                     //reset the error when a new line is received
                                                         //whenever a response is received with a given actuator ID that Actuator object is updated
         if (false) { }
-        else if (cmd == ">f")                           // an upstream force response has been received
+        else if (cmd == "]response")                           // an upstream handshake response
         {
-            int actID = int.Parse(parsed[1]);           
-            actuators[actID].force = int.Parse(parsed[2]);
-            actuators[actID].position = int.Parse(parsed[3]);
-            actuators[actID].lastResponse = Time.time;
-            actuators[actID].enumerated = true;
+            Serial.correctPort = true;
+            Debug.Log("response");
         }
-        else if (cmd == ">exf")                          // an upstream force response has been received
+        else if (cmd == "]f")                           // an upstream force response has been received
         {
-            int actID = int.Parse(parsed[1]);
-            actuators[actID].force = int.Parse(parsed[2]);
-            actuators[actID].position = int.Parse(parsed[3]);
-            actuators[actID].temperature =float.Parse(parsed[4]);
-            actuators[actID].voltage = float.Parse(parsed[5]);
-            actuators[actID].lastResponse = Time.time;
-            actuators[actID].enumerated = true;
+            
+            try
+            {
+                int actID = int.Parse(parsed[1]);
+                actuators[actID].force = int.Parse(parsed[2]);
+                actuators[actID].position = long.Parse(parsed[3]);
+                actuators[actID].lastResponse = Time.time;
+                actuators[actID].enumerated = true;
+
+            }
+            catch (System.Exception)
+            {
+                Debug.LogError("BAD string: " + line.ToString());
+            }
         }
-        else if (cmd == ">sleep")                      // an upstream sleep response has been received
+        else if (cmd == "]pc")                           // an upstream force response has been received
         {
-            int actID = int.Parse(parsed[1]);
-            actuators[actID].lastResponse = Time.time;
-            actuators[actID].enumerated = true;
+            try
+            {
+                int actID = int.Parse(parsed[1]);
+                actuators[actID].force = int.Parse(parsed[2]);
+                actuators[actID].position = long.Parse(parsed[3]);
+                actuators[actID].lastResponse = Time.time;
+                actuators[actID].enumerated = true;
+
+            }
+            catch (System.Exception)
+            {
+                Debug.LogError(line.ToString());
+            }
+            
+
         }
-        else if (cmd == ">wake")                       // an upstream wake response has been received
+        else if (cmd == "]exf")                          // an upstream force response has been received
         {
-            int actID = int.Parse(parsed[1]);
-            actuators[actID].lastResponse = Time.time;
-            actuators[actID].enumerated = true;
+            try
+            {
+                int actID = int.Parse(parsed[1]);
+                actuators[actID].force = int.Parse(parsed[2]);
+                actuators[actID].position = long.Parse(parsed[3]);
+                actuators[actID].errors = int.Parse(parsed[4]);
+                actuators[actID].temperature = int.Parse(parsed[5]);
+                actuators[actID].voltage = int.Parse(parsed[6]) / 1000f;
+                actuators[actID].power = int.Parse(parsed[7]);
+                actuators[actID].lastResponse = Time.time;
+                actuators[actID].enumerated = true;
+
+            }
+            catch (System.Exception)
+            {
+                Debug.LogError(line.ToString());
+            }
+            
+            
         }
-        else if (cmd == ">pol")                       // an upstream polarity response has been received
+        else if (cmd == "]sleep")                      // an upstream sleep response has been received
         {
-            int actID = int.Parse(parsed[1]);
-            actuators[actID].lastResponse = Time.time;
-            actuators[actID].polarity = int.Parse(parsed[2]);
-            actuators[actID].enumerated = true;
+            try
+            {
+                int actID = int.Parse(parsed[1]);
+                actuators[actID].lastResponse = Time.time;
+                actuators[actID].enumerated = true;
+            }
+            catch (System.Exception)
+            {
+                Debug.LogError(line.ToString());
+            }
+            
         }
-        else if (cmd == ">rp")                        // an upstream reset position response has been received
+        else if (cmd == "]wake")                       // an upstream wake response has been received
         {
-            int actID = int.Parse(parsed[1]);
-            actuators[actID].lastResponse = Time.time;
-            actuators[actID].enumerated = true;
+            try
+            {
+                int actID = int.Parse(parsed[1]);
+                actuators[actID].lastResponse = Time.time;
+                actuators[actID].enumerated = true;
+            }
+            catch (System.Exception)
+            {
+                Debug.LogError(line.ToString());
+            }
         }
-        else if (cmd == ">t")                         //an upstream temperature response has been received
+        else if (cmd == "]pol")                       // an upstream polarity response has been received
         {
-            int actID = int.Parse(parsed[1]);
-            actuators[actID].lastResponse = Time.time;
-            actuators[actID].temperature = float.Parse(parsed[2]);
-            actuators[actID].enumerated = true;
+            
+            try
+            {
+                int actID = int.Parse(parsed[1]);
+                actuators[actID].lastResponse = Time.time;
+                actuators[actID].polarity = int.Parse(parsed[2]);
+                actuators[actID].enumerated = true;
+            }
+            catch (System.Exception)
+            {
+                Debug.LogError(line.ToString());
+            }
         }
-        else if (cmd == ">state")                    // an upstream state response has been received
+        else if (cmd == "]rp")                        // an upstream reset position response has been received
         {
-            int actID = int.Parse(parsed[1]);
-            actuators[actID].lastResponse = Time.time;
-            actuators[actID].state = parsed[2];
-            actuators[actID].enumerated = true;
+            try
+            {
+                int actID = int.Parse(parsed[1]);
+                actuators[actID].lastResponse = Time.time;
+                actuators[actID].enumerated = true;
+            }
+            catch (System.Exception)
+            {
+                Debug.LogError(line.ToString());
+            }
+
         }
-        else if (cmd == ">info")                     // an upstream info response has been received
+        else if (cmd == "]t")                         //an upstream temperature response has been received
+        {
+            try
+            {
+                int actID = int.Parse(parsed[1]);
+                actuators[actID].lastResponse = Time.time;
+                actuators[actID].temperature = float.Parse(parsed[2]);
+                actuators[actID].enumerated = true;
+            }
+            catch (System.Exception)
+            {
+                Debug.LogError(line.ToString());
+            }
+            
+        }
+        else if (cmd == "]info")                     // an upstream info response has been received
         {
             int actID = int.Parse(parsed[1]);
             actuators[actID].lastResponse = Time.time;
@@ -105,7 +200,7 @@ static class EagleAPI
             }
             actuators[actID].enumerated = true;
         }
-        else if (cmd == ">invalid_act")             // The targetted actuator is not enumerated.
+        else if (cmd == "]invalid_act")             // The targetted actuator is not enumerated.
                                                     // check the string EagleAPI.availableActuators for a list of enumerated actuator ID
                                                     // to update the list of available actuators run EagleAPI.Enumerate() or EagleAPI.Initialize()
         {
@@ -121,11 +216,11 @@ static class EagleAPI
             }
             
         }
-        else if (cmd == ">invalid_arg")            // The argument sent with the command was invalid
+        else if (cmd == "]invalid_arg")            // The argument sent with the command was invalid
         {
             error = parsed[3] + "is not a valid argument for" + parsed[2] + "command";
         }
-        else if (cmd == ">init")
+        else if (cmd == "]init")
         {
             for (int i=1; i < (parsed.Length); i++)
             {
@@ -149,8 +244,9 @@ static class EagleAPI
 
 class Actuator
 {
-    public int actID, force, position, polarity;
-    public float temperature, voltage, lastResponse;
+    public int actID, force, polarity, errors;
+    public long position, velocity, last_position;
+    public float temperature, voltage, power, lastResponse;
     public string state, actuatorInfo;
     public bool enumerated;
     public Actuator(int actuatorID)  //Constructor
@@ -160,46 +256,57 @@ class Actuator
 
     public void Force(int forceArg=0)         //send a downstream Force Command (actuator must first be enabled with Wake command to output a force)
     {
-        Serial.WriteLn("<f " + actID + " " + forceArg + "\r");
+        Serial.Write("[f " + actID.ToString() + " " + forceArg.ToString() + "\r");
     }
 
     public void ExtendedForce(int forceArg=0)  //send a downstream Extended Force Command (actuator must first be enabled to output a force)
     {
-        Serial.WriteLn("<exf " + actID + " " + forceArg + "\r");
+        Serial.Write("[exf " + actID + " " + forceArg + "\r");
     }
 
     public void Sleep()                         //send a downstream Sleep Command (disable actuator forces)
     {
-        Serial.WriteLn("<sleep " + actID + "\r");
+        Debug.Log("sleep");
+        Serial.Write("[sleep " + actID + "\r");
     }
 
     public void Wake()                          //send a downstream Wake Command (enable actuator forces)
     {
-        Serial.WriteLn("<wake " + actID + "\r");
+        Serial.Write("[wake " + actID + "\r");
     }
 
     public void Polarity(int pol)                     //send a downstream Polarity Command (change the positive direction)
     {
-        Serial.WriteLn("<pol " + actID + " " + pol + "\r");
+        Serial.Write("[pol " + actID + " " + pol+ "\r");
     }
 
     public void ResetPosition()               //send a downstream Reset Position Command (set the current position to 0)
     {
-        Serial.WriteLn("<rp " + actID + "\r");
+        Serial.Write("[rp " + actID + "\r");
+    }
+
+    public void PositionControl(int target_pos)               //send a downstream Reset Position Command (set the current position to 0)
+    {
+        Serial.Write("[pc " + actID + " " + target_pos+  "\r");
+    }
+
+    public void EnablePositionControl(int enable)               //send a downstream Reset Position Command (set the current position to 0)
+    {
+        Serial.Write("[pcen " + actID + " " + enable + "\r");
     }
 
     public void Temperature()                 //send a downstream Temperature Request (ask for the temperature in Celcius)
     {
-        Serial.WriteLn("<t " + actID + "\r");
+        Serial.Write("[t " + actID + "\r");
     }
 
-    public void State()                       //send a downstream State Request (Disabled, Enabled, Calibration, Servo, Extended_Servo Info_and_Config
+    public void ClearErrors()                 //send a downstream clear error request, will clear any errors that are no longer present
     {
-        Serial.WriteLn("<state " + actID + "\r");
+        Serial.Write("[ce " + actID + "\r");
     }
 
     public void Info()                        //send a downstream Info Request to receive configuration and ID information
     {
-        Serial.WriteLn("<info " + actID + "\r");
+        Serial.Write("[info " + actID + "\r");
     }
 }

@@ -37,6 +37,7 @@ using System.Collections;
 using System.Collections.Generic;
 // If you get error CS0234 on this line, see troubleshooting section above
 using System.IO.Ports;
+using System;
 
 public class Serial : MonoBehaviour
 {
@@ -46,9 +47,11 @@ public class Serial : MonoBehaviour
     bool wasconnected = false;
     string buttonname = "Disconnected";
     float starttime;
- 
+    public static int portAttempt = 1;
+    public static bool correctPort = false;
+    public static int packets = 0;
     private List<string> linesIn = new List<string>();
-
+    public static string port_name = "";
     /// <summary>
     /// Gets the lines count.
     /// </summary>
@@ -68,7 +71,7 @@ public class Serial : MonoBehaviour
     #region Static vars
 
     // Only one serial port shared among all instances and living after all instances have been destroyed
-    private static SerialPort s_serial;
+    public static SerialPort s_serial;
 
     // All instances of this component
     private static List<Serial> s_instances = new List<Serial>();
@@ -79,7 +82,7 @@ public class Serial : MonoBehaviour
     private static float s_lastDataIn = 0;
     private static float s_lastDataCheck = 0;
 
-    static int speed = 250000;
+    static int speed = 115200;
     #endregion
 
     void OnEnable()
@@ -315,7 +318,14 @@ public class Serial : MonoBehaviour
     public static void Write(string message)
     {
         if (checkOpen())
+        {
+           //Debug.Log(message);
             s_serial.Write(message);
+            packets++;
+        }
+            
+           
+
     }
 
     /// <summary>
@@ -361,10 +371,11 @@ public class Serial : MonoBehaviour
                         break;
                 }
 
-                if (s_debug)
-                {
+                //if (s_debug)
+                //{
                     Debug.Log("Opening serial port: " + portName + " at " + portSpeed + " bauds");
-                }
+                port_name = portName;
+                //}
             }
 
             if (s_serial != null && s_serial.IsOpen)
@@ -377,7 +388,7 @@ public class Serial : MonoBehaviour
         return s_serial.IsOpen;
     }
 
-    public bool Open()
+    public static bool Open()
     {
         if (!s_serial.IsOpen)
         {
@@ -406,6 +417,7 @@ public class Serial : MonoBehaviour
     // Data has been received, do what this instance has to do with it
     protected void receivedData(string data)
     {
+        
         // prepend pending buffer to received data and split by line
         string[] lines = (BufferIn + data).Split('\n');
 
@@ -413,12 +425,14 @@ public class Serial : MonoBehaviour
         // We keep it in buffer for next data.
         int nLines = lines.Length;
         BufferIn = lines[nLines - 1];
-
         // Loop until the penultimate line (don't use the last one: either it is empty or it has already been saved for later)
         for (int iLine = 0; iLine < nLines - 1; iLine++)
         {
             string line = lines[iLine];
-            SendMessage("OnSerialLine", line);
+            //SendMessage("OnSerialLine", line);
+            EagleAPI.Receive(line);
+            
+            //todo try  might speed things up.
         }
 
 
@@ -460,10 +474,10 @@ public class Serial : MonoBehaviour
                 break;
         }
 
-        if (s_debug)
-        {
+        //if (s_debug)
+        //{
             Debug.Log(portNames.Count + "available ports: \n" + string.Join("\n", portNames.ToArray()));
-        }
+        //}
 
         foreach (string name in portNames_config) 
         {
@@ -480,7 +494,11 @@ public class Serial : MonoBehaviour
 
         // Defaults to last port in list (most chance to be an Arduino port)
         if (portNames.Count > 0)
-            return portNames[portNames.Count - 1];
+        {
+            if (portAttempt > portNames.Count) portAttempt = 1;
+            return portNames[portNames.Count - portAttempt];// 1];
+        }
+            
         else
             return "";
     }
