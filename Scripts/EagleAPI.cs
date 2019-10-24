@@ -1,12 +1,12 @@
 ﻿/**@file EagleAPI.cs
- * This is the Eagle API library that allows easy sending and parsing of all EagleAPI commands
+ * @brief This is the Eagle API library that allows easy sending and parsing of all EagleAPI commands.
  */
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 /**\class EagleAPI
- * Contains serial commands to send to Eagle Controller.
+ *@brief Contains serial commands to send to Eagle Controller.
  */
 static class EagleAPI
 {
@@ -17,9 +17,8 @@ static class EagleAPI
                                                         new Actuator(6), new Actuator(7)};
    
 
-    /**initialize all actuators, this will configure and calibrate the actuators to their default settings
-    *the Eagle Controller does this automatically on start up
-    *this will also update the enumerated variable of the actuators
+    /**@brief Initialize all actuators.
+    *The Eagle Controller does this automatically on start up
     */
     public static void Enumerate()
     {
@@ -37,7 +36,7 @@ static class EagleAPI
         Serial.Write("[ready\r");
     }
 
-    /**Parse responses from eagle controller
+    /**@brief Parse responses from eagle controller.
      * This function is called by the receivedData function of the Serial class
      * \param line Incomming serial line to be parsed
      */
@@ -61,8 +60,6 @@ static class EagleAPI
                 actuators[actID].force = int.Parse(parsed[2]);
                 actuators[actID].position = long.Parse(parsed[3]);
                 actuators[actID].lastResponse = Time.time;
-                actuators[actID].enumerated = true;
-
             }
             catch (System.Exception)
             {
@@ -77,8 +74,6 @@ static class EagleAPI
                 actuators[actID].force = int.Parse(parsed[2]);
                 actuators[actID].position = long.Parse(parsed[3]);
                 actuators[actID].lastResponse = Time.time;
-                actuators[actID].enumerated = true;
-
             }
             catch (System.Exception)
             {
@@ -99,8 +94,6 @@ static class EagleAPI
                 actuators[actID].voltage = int.Parse(parsed[6]) / 1000f;    
                 actuators[actID].power = int.Parse(parsed[7]);
                 actuators[actID].lastResponse = Time.time;
-                actuators[actID].enumerated = true;
-
             }
             catch (System.Exception)
             {
@@ -115,7 +108,6 @@ static class EagleAPI
             {
                 int actID = int.Parse(parsed[1]);
                 actuators[actID].lastResponse = Time.time;
-                actuators[actID].enumerated = true;
             }
             catch (System.Exception)
             {
@@ -129,7 +121,6 @@ static class EagleAPI
             {
                 int actID = int.Parse(parsed[1]);
                 actuators[actID].lastResponse = Time.time;
-                actuators[actID].enumerated = true;
             }
             catch (System.Exception)
             {
@@ -144,7 +135,6 @@ static class EagleAPI
                 int actID = int.Parse(parsed[1]);
                 actuators[actID].lastResponse = Time.time;
                 actuators[actID].polarity = int.Parse(parsed[2]);
-                actuators[actID].enumerated = true;
             }
             catch (System.Exception)
             {
@@ -157,7 +147,6 @@ static class EagleAPI
             {
                 int actID = int.Parse(parsed[1]);
                 actuators[actID].lastResponse = Time.time;
-                actuators[actID].enumerated = true;
             }
             catch (System.Exception)
             {
@@ -172,7 +161,6 @@ static class EagleAPI
                 int actID = int.Parse(parsed[1]);
                 actuators[actID].lastResponse = Time.time;
                 actuators[actID].temperature = float.Parse(parsed[2]);
-                actuators[actID].enumerated = true;
             }
             catch (System.Exception)
             {
@@ -189,21 +177,10 @@ static class EagleAPI
             {
                 actuators[actID].actuatorInfo += parsed[i] + "\n";
             }
-            actuators[actID].enumerated = true;
         }
         else if (cmd == "]invalid_act")             /// The targetted actuator is not enumerated.                                                    */
         {
             error = "Target actuator " + parsed[1] + " not available";
-            int actID;
-            if (int.TryParse(parsed[1], out actID))
-            {
-                if ((actID>=0) && (actID < actuators.Length))
-                {
-                    actuators[actID].enumerated = false;
-                }
-                
-            }
-            
         }
         else if (cmd == "]invalid_arg")            /// The argument sent with the command was invalid
         {
@@ -211,28 +188,13 @@ static class EagleAPI
         }
         else if (cmd == "]init")
         {
-            for (int i=1; i < (parsed.Length); i++)
-            {
-                int actID;
-                if (int.TryParse(parsed[i], out actID)){
-                    actuators[actID].enumerated = true;
-                }
-            }
         }
 
-        availableActuators = "";                   //Update the list of enumerated actuators
-        for(int i = 0; i<actuators.Length; i++)
-        {
-            if (actuators[i].enumerated)
-            {
-                availableActuators += i.ToString() + " ";
-            }
-        }
     }
 }
 
 /**\class Actuator 
- * Object that is used to keep track of infomation pertaining to a specific actuator
+ * @brief Object that is used to keep track of infomation pertaining to a specific actuator.
  * This object is updated from the EagleAPI Receive function
  */
 class Actuator
@@ -241,7 +203,6 @@ class Actuator
     public long position;
     public float temperature, voltage, power, lastResponse;
     public string actuatorInfo;
-    public bool enumerated;
     /**Constructor
      * \param actuatorID This is the id used by the eagle controller as described in the Eagle Controller Reference Manual
      */

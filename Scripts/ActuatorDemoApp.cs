@@ -1,6 +1,6 @@
-﻿/**@file ActuatorDemoApp.cs
+﻿/**
  * 
- *Control actuators using EagleAPI
+ 
  * @mainpage Introduction
  * This is an app used to control the actuators force or position using sliders.
  * Communication to an Eagle controller over usb using EagleAPI protocol.
@@ -21,30 +21,39 @@
  * The Force effects available are a spring effect, a sinusoidal force, and a constant force, which can be layered. 
  * 
  * Force Control Sliders
- * - Spring Constant
+ * - Spring_Constant
  * This is the spring rate higher values indicate stronger spring force/mm (since force is not a defined unit)
  * 
- * - Spring Center
+ * - Spring_Center
  * This is the center position for spring force calculations, the center of a dca series shaft is at approximately 75mm
  * 
- * - Sine Magnitude
+ * - Sine_Magnitude
  * This is the magnitdute of the sine wave, ie the force at the peaks,
  * 
- * - Sine Frequency
+ * - Sine_Frequency
  * Frequency of sine wave oscillation in Hz
+ * 
+ * - Constant_Force
+ * Magnitude of constant force
  * 
  * Position Control Sliders
  * - Target Position
  * This is the target position in mm from the zero position of the actuator that it should try to move to, if this is not working ensure that the position controller has been tuned using IrisControls software 
+ * 
+ * 
  */
-
+/**@file ActuatorDemoApp.cs
+* @brief Control actuators using EagleAPI
+* 
+* @author Rebecca McWilliam <rmcwilliam@irisdynamics.com>
+ */
 using System.Collections;
 using System.Collections.Generic;
 using System;
 using UnityEngine;
 
 /**\class ActuatorDemoApp
- * Layer various feedback effects onto actuators using sliders.
+ * @brief Layer various feedback effects onto actuators using sliders.
  * 
  * Uses the Serial.cs script on same game object and uses EagleAPI to send and parse commands.
  */
@@ -74,7 +83,8 @@ public class ActuatorDemoApp : MonoBehaviour
     bool positionControl = false;       //!< Toggle to turn on position control
     bool pcenableflag = true;           //!< When true send a pc enable command (either on or off depending on circumstance)
 
-    /** Start is called before the first frame update
+    /**@brief Start is called before the first frame update.
+     * 
      * Sets up the window size and sends the initial handshake to check if the right port is being used by the Serial class
      */
     void Start()
@@ -82,12 +92,11 @@ public class ActuatorDemoApp : MonoBehaviour
         Screen.SetResolution(800,600, false);
         last_second = Time.time;
         style.normal.textColor = Color.white;
-        EagleAPI.Handshake();
+        EagleAPI.Handshake();       ///check if there is an Eagle controller on the connected port
         waiting_for_response = Time.time;
     }
 
-    /** Updates at a fixed timestep. 
-     * Calculates physics for force control effects or position control
+    /** @brief Updates at a fixed timestep, calculates physics for force control effects or position control
      */
     void FixedUpdate()
     {
@@ -138,8 +147,8 @@ public class ActuatorDemoApp : MonoBehaviour
     }
 
     /**
-     * Update the app's gui and take actions based on user interaction with gui
-     * Additional buttons can be added to easily send EagleAPI commands
+     * @brief Update the app's gui and take actions based on user interaction with gui.
+     * Additional buttons can be added to easily send EagleAPI commands<br>
      * if (GUI.Button(new Rect(200, 200, 75, 20), "Reset Position"))    EagleAPI.actuators[target_actuator].ResetPosition();
      */
     private void OnGUI()
@@ -166,6 +175,9 @@ public class ActuatorDemoApp : MonoBehaviour
 
         ///Comm port that is being used by the Serial class
         GUI.Label(new Rect(Screen.width - 250, Screen.height -100, 250, 40), "Port:     " + Serial.port_name, style);
+
+        ///Send a system ready command
+        if (GUI.Button(new Rect(50, 250, 150, 20), "System Ready")) EagleAPI.SystemReady();
 
         ///Actuator information, target acutator, position, actuator force, temperature etc.
         GUI.Label(new Rect(50, 50, 250, 40), "Target Actuator:               " + target_actuator.ToString());

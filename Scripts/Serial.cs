@@ -1,5 +1,5 @@
 /**@file Serial.cs
- * This file contains the Serial class used to establish read write capabilities using the USB com ports.
+ * @brief This file contains the Serial class used to establish read write capabilities using the USB com ports.
  * Troubleshooting
  * ---------------
  * You may get the following error:
@@ -20,7 +20,7 @@ using System.Collections.Generic;
 using System.IO.Ports;
 
 /**\class Serial
- * This component helps sending and receiving data from a serial port.
+ *@brief This component helps sending and receiving data from a serial port.
  * It detects line breaks and notifies the attached gameObject of new lines as they arrive.
  *  
  * Usage 1: Receive data when you expect line breaks
