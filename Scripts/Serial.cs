@@ -6,9 +6,9 @@
  * error CS0234: The type or namespace name `Ports' does not exist in the namespace `System.IO'. 
  * Are you missing an assembly reference?
  * Solution: 
- * for newer versions of unity (2019.2.3f1 for example)
+ * for newer versions of unity (2019.2.3f1 for example, any that have the option .NET 4.x and .NET Standard 2.0)
  * Menu Edit | Project Settings | Player | Other Settings | API Compatibility Level: .Net 4.x
- * for older versions of unity
+ * for older versions of unity (note .NET Standard 2.0 is not the same as .NET 2.0, if there is no .NET 2.0 option select .NET 4.x
  *  Menu Edit | Project Settings | Player | Other Settings | API Compatibility Level: .Net 2.0 
  */
 
